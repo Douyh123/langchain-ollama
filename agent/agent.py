@@ -78,12 +78,40 @@ class HotelRAGAgent:
         )
 
         # 5. 创建 RAG 链
+        # 为 map_reduce 链创建不同的 prompt
+        question_prompt = PromptTemplate(
+            template="""基于以下评论内容，回答问题。
+请用三句话句话总结回答，不要编造信息，输出相关评论，不要解释过程。
+
+评论：{context}
+问题：{question}
+
+回答：""",
+            input_variables=["context", "question"]
+        )
+
+        combine_prompt = PromptTemplate(
+            template="""基于以下各个评论的回答，综合生成最终答案。
+请用三句话句话总结回答，不要编造信息，输出相关评论，不要解释过程。
+
+各部分的回答：
+{summaries}
+
+最终问题：{question}
+
+最终回答：""",
+            input_variables=["summaries", "question"]
+        )
+
         self.qa_chain = RetrievalQA.from_chain_type(
             llm=self.llm,
             chain_type="map_reduce",
-            retriever=self.vector_db.as_retriever(search_kwargs={"k": 100}),
+            retriever=self.vector_db.as_retriever(search_kwargs={"k": 20}),
             return_source_documents=False,
-            chain_type_kwargs={"prompt": PROMPT}
+            chain_type_kwargs={
+                "question_prompt": question_prompt,
+                "combine_prompt": combine_prompt
+            }
         )
 
     def ask(self, query: str) -> str:
